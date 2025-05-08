@@ -44,7 +44,7 @@ actor NotesService {
                         set output to output & "---START---" & linefeed
                         set output to output & "ID: " & id of n & linefeed
                         set output to output & "Name: " & name of n & linefeed
-                        set output to output & "Body: " & body of n & linefeed
+                        set output to output & "Body: " & (get body of n) & linefeed
                         set output to output & "Created: " & creation date of n & linefeed
                         set output to output & "Modified: " & modification date of n & linefeed
                         
@@ -92,20 +92,42 @@ actor NotesService {
     }
     
     private func parseNotes(_ output: String) -> [(String, [String: String])] {
+        print("\nRaw AppleScript output:\n\(output)")
+        
         let notes = output.components(separatedBy: "---START---")
             .dropFirst() // First component is empty
             .compactMap { note -> (String, [String: String])? in
                 var dict: [String: String] = [:]
                 var currentId = ""
+                var isReadingBody = false
+                var bodyContent = ""
                 
                 let lines = note.components(separatedBy: .newlines)
                 for line in lines {
+                    if isReadingBody {
+                        // Stop reading body when we hit the next field
+                        if line.hasPrefix("Created: ") || 
+                           line.hasPrefix("Modified: ") || 
+                           line.hasPrefix("Container: ") || 
+                           line.hasPrefix("Account: ") || 
+                           line.hasPrefix("Password Protected: ") || 
+                           line.hasPrefix("Shared: ") || 
+                           line.hasPrefix("Attachments: ") || 
+                           line.hasPrefix("---END---") {
+                            isReadingBody = false
+                            dict["BODY"] = bodyContent.trimmingCharacters(in: .whitespacesAndNewlines)
+                        } else {
+                            bodyContent += line + "\n"
+                        }
+                    }
+                    
                     if line.hasPrefix("ID: ") {
                         currentId = String(line.dropFirst(4))
                     } else if line.hasPrefix("Name: ") {
                         dict["NAME"] = String(line.dropFirst(6))
                     } else if line.hasPrefix("Body: ") {
-                        dict["BODY"] = String(line.dropFirst(6))
+                        bodyContent = String(line.dropFirst(6)) + "\n"
+                        isReadingBody = true
                     } else if line.hasPrefix("Created: ") {
                         dict["CREATED"] = String(line.dropFirst(9))
                     } else if line.hasPrefix("Modified: ") {
@@ -134,6 +156,15 @@ actor NotesService {
         dateFormatter.locale = Locale(identifier: "en_US")
         dateFormatter.dateFormat = "EEEE d MMMM yyyy 'at' HH:mm:ss"
         
+        // First, delete all existing notes
+        let descriptor = FetchDescriptor<Item>()
+        if let existingItems = try? context.fetch(descriptor) {
+            for item in existingItems {
+                context.delete(item)
+            }
+        }
+        
+        // Then insert the new notes
         for (id, dict) in notes {
             let item = Item(
                 title: dict["NAME"],

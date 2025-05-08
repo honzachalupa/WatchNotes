@@ -51,8 +51,9 @@
 		21CD0ECE2DCCC946009AC1E0 /* Exceptions for "Shared" folder in "macOS" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Item.swift,
-				NotesView.swift,
+				Models/Item.swift,
+				Views/HTMLTextView.swift,
+				Views/NotesView.swift,
 			);
 			target = 21CD0E982DCCB8A5009AC1E0 /* macOS */;
 		};
@@ -415,6 +416,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Watch Notes Server";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "This app requires access to Apple Notes to synchronize your notes.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -449,6 +451,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Watch Notes Server";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "This app requires access to Apple Notes to synchronize your notes.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
