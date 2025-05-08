@@ -28,61 +28,52 @@ struct NotesView: View {
                 }
                 .navigationTitle(title)
                 .toolbar {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button { isInfoSheetPresented.toggle() } label: {
+                    ToolbarItem {
+                        Button {
+                            isInfoSheetPresented.toggle()
+                        } label: {
                             Label("Info", systemImage: "info.circle")
                         }
-
                     }
                 }
                 .sheet(isPresented: $isInfoSheetPresented) {
-                    if let id = item.noteId {
-                        Text("ID: \(id)")
-                            .font(.caption)
-                    }
-                    
-                    if let created = item.creationDate {
-                        Text("Created: \(created.formatted())")
-                            .font(.caption)
-                    }
-                    
-                    if let modified = item.modificationDate {
-                        Text("Modified: \(modified.formatted())")
-                            .font(.caption)
-                    }
-                    
-                    if let container = item.container {
-                        Text("Folder: \(container)")
-                            .font(.caption)
-                    }
-                    
-                    if let account = item.account {
-                        Text("Account: \(account)")
-                            .font(.caption)
-                    }
-                    
-                    if let isProtected = item.isPasswordProtected {
-                        Label(
-                            isProtected ? "Password Protected" : "Not Protected",
-                            systemImage: isProtected ? "lock.fill" : "lock.open"
-                        )
-                        .font(.caption)
-                    }
-                    
-                    if let isShared = item.isShared {
-                        Label(
-                            isShared ? "Shared Note" : "Private Note",
-                            systemImage: isShared ? "person.2.fill" : "person.fill"
-                        )
-                        .font(.caption)
-                    }
-                    
-                    if let attachments = item.attachmentsCount, attachments > 0 {
-                        Label(
-                            "\(attachments) attachment\(attachments == 1 ? "" : "s")",
-                            systemImage: "paperclip"
-                        )
-                        .font(.caption)
+                    List {
+                        if let created = item.creationDate {
+                            Text("Created date: \(created.formatted())")
+                        }
+                        
+                        if let modified = item.modificationDate {
+                            Text("Modified date: \(modified.formatted())")
+                        }
+                        
+                        if let container = item.container {
+                            Text("Folder: \(container)")
+                        }
+                        
+                        if let account = item.account {
+                            Text("Account: \(account)")
+                        }
+                        
+                        if let isProtected = item.isPasswordProtected {
+                            Label(
+                                isProtected ? "Password Protected" : "Not Protected",
+                                systemImage: isProtected ? "lock.fill" : "lock.open"
+                            )
+                        }
+                        
+                        if let isShared = item.isShared {
+                            Label(
+                                isShared ? "Shared Note" : "Private Note",
+                                systemImage: isShared ? "person.2.fill" : "person.fill"
+                            )
+                        }
+                        
+                        if let attachments = item.attachmentsCount, attachments > 0 {
+                            Label(
+                                "\(attachments) attachment\(attachments == 1 ? "" : "s")",
+                                systemImage: "paperclip"
+                            )
+                        }
                     }
                 }
             } else {

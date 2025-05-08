@@ -17,7 +17,7 @@ struct ContentView: View {
                             ProgressView()
                                 .controlSize(.small)
                         } else {
-                            Label("Sync", systemImage: "arrow.triangle.2.circlepath")
+                            Label("Synchronize", systemImage: "arrow.triangle.2.circlepath")
                         }
                     }
                     .disabled(isSyncing)

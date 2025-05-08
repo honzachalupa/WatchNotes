@@ -40,7 +40,39 @@ actor NotesService {
             tell application "Notes"
                 set output to ""
                 repeat with n in every note
-                    set output to output & "---START---" & id of n & "---ID---" & name of n & "---NAME---" & body of n & "---BODY---" & (creation date of n as string) & "---CREATED---" & (modification date of n as string) & "---MODIFIED---" & name of container of n & "---CONTAINER---" & name of account of n & "---ACCOUNT---" & (password protected of n as string) & "---PASSWORD---" & (shared of n as string) & "---SHARED---" & (count of attachments of n as string) & "---ATTACHMENTS---" & "---END---"
+                    try
+                        set output to output & "---START---" & linefeed
+                        set output to output & "ID: " & id of n & linefeed
+                        set output to output & "Name: " & name of n & linefeed
+                        set output to output & "Body: " & body of n & linefeed
+                        set output to output & "Created: " & creation date of n & linefeed
+                        set output to output & "Modified: " & modification date of n & linefeed
+                        
+                        -- Get container name
+                        if container of n is not missing value then
+                            set output to output & "Container: " & (get name of container of n) & linefeed
+                        else
+                            set output to output & "Container: None" & linefeed
+                        end if
+                        
+                        -- Handle account name safely
+                        try
+                            set accountName to name of account of n as text
+                            set output to output & "Account: " & accountName & linefeed
+                        on error
+                            set output to output & "Account: Unknown" & linefeed
+                        end try
+                        
+                        set output to output & "Password Protected: " & password protected of n & linefeed
+                        set output to output & "Shared: " & shared of n & linefeed
+                        set output to output & "Attachments: " & (count of attachments of n) & linefeed
+                        set output to output & "---END---" & linefeed
+                    on error errMsg
+                        -- Skip problematic notes but continue with others
+                        set output to output & "---START---" & linefeed
+                        set output to output & "Error: Could not read note - " & errMsg & linefeed
+                        set output to output & "---END---" & linefeed
+                    end try
                 end repeat
                 return output
             end tell
@@ -63,27 +95,35 @@ actor NotesService {
         let notes = output.components(separatedBy: "---START---")
             .dropFirst() // First component is empty
             .compactMap { note -> (String, [String: String])? in
-                let markers = ["ID", "NAME", "BODY", "CREATED", "MODIFIED", "CONTAINER", "ACCOUNT", "PASSWORD", "SHARED", "ATTACHMENTS", "END"]
                 var dict: [String: String] = [:]
                 var currentId = ""
                 
-                for marker in markers {
-                    if let range = note.range(of: "---\(marker)---") {
-                        let start = note[..<range.lowerBound]
-                        if marker == "ID" {
-                            currentId = String(start)
-                        } else {
-                            let prevMarker = markers[markers.firstIndex(of: marker)! - 1]
-                            if let prevRange = note.range(of: "---\(prevMarker)---") {
-                                let value = String(start[prevRange.upperBound...])
-                                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                                dict[prevMarker] = value
-                            }
-                        }
+                let lines = note.components(separatedBy: .newlines)
+                for line in lines {
+                    if line.hasPrefix("ID: ") {
+                        currentId = String(line.dropFirst(4))
+                    } else if line.hasPrefix("Name: ") {
+                        dict["NAME"] = String(line.dropFirst(6))
+                    } else if line.hasPrefix("Body: ") {
+                        dict["BODY"] = String(line.dropFirst(6))
+                    } else if line.hasPrefix("Created: ") {
+                        dict["CREATED"] = String(line.dropFirst(9))
+                    } else if line.hasPrefix("Modified: ") {
+                        dict["MODIFIED"] = String(line.dropFirst(10))
+                    } else if line.hasPrefix("Container: ") {
+                        dict["CONTAINER"] = String(line.dropFirst(11))
+                    } else if line.hasPrefix("Account: ") {
+                        dict["ACCOUNT"] = String(line.dropFirst(9))
+                    } else if line.hasPrefix("Password Protected: ") {
+                        dict["PASSWORD"] = String(line.dropFirst(19))
+                    } else if line.hasPrefix("Shared: ") {
+                        dict["SHARED"] = String(line.dropFirst(8))
+                    } else if line.hasPrefix("Attachments: ") {
+                        dict["ATTACHMENTS"] = String(line.dropFirst(12))
                     }
                 }
                 
-                return (currentId, dict)
+                return currentId.isEmpty ? nil : (currentId, dict)
             }
         
         return notes
@@ -125,12 +165,32 @@ actor NotesService {
         }
         
         return await withCheckedContinuation { continuation in
-            let script = NSAppleScript(source: "tell application \"Notes\" to count every note")
+            let script = NSAppleScript(source: """
+                tell application "Notes"
+                    try
+                        set noteCount to count of every note
+                        log "Access check - Found " & noteCount & " notes"
+                        
+                        set accountList to every account
+                        log "Access check - Found " & (count of accountList) & " accounts"
+                        repeat with acc in accountList
+                            log "Account: " & name of acc
+                        end repeat
+                        
+                        return true
+                    on error errMsg
+                        log "Access check error: " & errMsg
+                        return false
+                    end try
+                end tell
+            """)
+            
             var error: NSDictionary?
-            if script?.executeAndReturnError(&error) != nil {
-                continuation.resume(returning: true)
+            if let result = script?.executeAndReturnError(&error) {
+                print("Notes access check result: \(result.booleanValue)")
+                continuation.resume(returning: result.booleanValue)
             } else {
-                print("Notes access error: \(error?.description ?? "unknown error")")
+                print("Notes access error: \(error?.description ?? "unknown")")
                 continuation.resume(returning: false)
             }
         }
