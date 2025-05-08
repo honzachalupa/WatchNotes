@@ -52,6 +52,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Item.swift,
+				NotesView.swift,
 			);
 			target = 21CD0E982DCCB8A5009AC1E0 /* macOS */;
 		};

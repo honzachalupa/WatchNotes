@@ -1,14 +1,9 @@
 import SwiftUI
 import SwiftData
-import Carbon.HIToolbox
-import ApplicationServices
-import AppKit
-import AppleScriptObjC
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var items: [Item]
-    
     @State private var isSyncing = false
     
     func checkNotesAccess() -> Bool {
@@ -27,7 +22,7 @@ struct ContentView: View {
             tell application "Notes"
                 count every note
             end tell
-            """)
+        """)
         
         var error: NSDictionary?
         let result = simpleScript?.executeAndReturnError(&error)
@@ -49,6 +44,7 @@ struct ContentView: View {
         guard !isSyncing else { return }
         
         isSyncing = true
+        
         print("Starting sync...")
         
         // Launch Notes app first and bring to front
@@ -60,9 +56,12 @@ struct ContentView: View {
         NSWorkspace.shared.openApplication(at: notesURL, configuration: config) { (app, error) in
             if let error = error {
                 print("Error opening Notes: \(error)")
+                
                 self.isSyncing = false
+                
                 return
             }
+            
             print("Notes app launched successfully")
         }
         
@@ -71,6 +70,7 @@ struct ContentView: View {
             // First attempt to access Notes
             if !self.checkNotesAccess() {
                 print("Waiting for Notes access...")
+                
                 // Try again after a short delay to allow macOS to show permission dialog
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                     if !self.checkNotesAccess() {
@@ -98,7 +98,9 @@ struct ContentView: View {
         
         if !isNotesRunning {
             print("Notes is not running, cannot sync")
+            
             isSyncing = false
+            
             return
         }
         
@@ -111,14 +113,48 @@ struct ContentView: View {
                 -- Get all notes data
                 set output to ""
                 repeat with n in every note
-                    set output to output & "---START---" & name of n & "---BODY---" & body of n & "---END---"
+                    try
+                        set output to output & "---START---" & linefeed
+                        set output to output & "ID: " & id of n & linefeed
+                        set output to output & "Name: " & name of n & linefeed
+                        set output to output & "Body: " & body of n & linefeed
+                        set output to output & "Created: " & creation date of n & linefeed
+                        set output to output & "Modified: " & modification date of n & linefeed
+                        
+                        -- Get container name
+                        if container of n is not missing value then
+                            set output to output & "Container: " & (get name of container of n) & linefeed
+                        else
+                            set output to output & "Container: None" & linefeed
+                        end if
+                        
+                        -- Handle account name safely
+                        try
+                            set accountName to name of account of n as text
+                            set output to output & "Account: " & accountName & linefeed
+                        on error
+                            set output to output & "Account: Unknown" & linefeed
+                        end try
+                        
+                        set output to output & "Password Protected: " & password protected of n & linefeed
+                        set output to output & "Shared: " & shared of n & linefeed
+                        set output to output & "Attachments: " & (count of attachments of n) & linefeed
+                        set output to output & "---END---" & linefeed
+                    on error errMsg
+                        -- Skip problematic notes but continue with others
+                        set output to output & "---START---" & linefeed
+                        set output to output & "Error: Could not read note - " & errMsg & linefeed
+                        set output to output & "---END---" & linefeed
+                    end try
                 end repeat
                 return output
             end tell
         """
         guard let script = NSAppleScript(source: source) else {
             print("Failed to create AppleScript")
+            
             isSyncing = false
+            
             return
         }
         
@@ -129,6 +165,7 @@ struct ContentView: View {
         
         if error != nil {
             print("Error executing AppleScript: \(error!)")
+            
             if let errorDict = error as? [String: Any] {
                 for (key, value) in errorDict {
                     print("Error key: \(key), value: \(value)")
@@ -142,23 +179,101 @@ struct ContentView: View {
                     print("Error message: \(errorMessage)")
                 }
             }
+            
             isSyncing = false
+            
             return
         }
         
         if let output = scriptResult.stringValue {
             print("Got raw output, parsing...")
             
-            // Parse the output
-            let notes = output.components(separatedBy: "---END---")
-                .filter { !$0.isEmpty }
-                .compactMap { noteStr -> (String, String)? in
-                    let parts = noteStr.components(separatedBy: "---BODY---")
-                    guard parts.count == 2 else { return nil }
-                    
-                    let title = parts[0].replacingOccurrences(of: "---START---", with: "")
-                    return (title, parts[1])
+            // Parse note data
+            var notes: [Item] = []
+            let lines = output.components(separatedBy: "---START---")
+            print("Found \(lines.count) raw note entries")
+            
+            for (index, line) in lines.enumerated() {
+                guard !line.isEmpty else { continue }
+                print("\nParsing note \(index):")
+                print("Raw data:\n\(line)")
+                
+                let noteLines = line.components(separatedBy: "\n")
+                var dict: [String: String] = [:]
+                
+                // Split by markers but preserve the content
+                let markers = ["ID:", "Name:", "Body:", "Created:", "Modified:", "Container:", "Account:", "Password Protected:", "Shared:", "Attachments:", "---END---"]
+                var currentContent = line
+                
+                for marker in markers {
+                    if let range = currentContent.range(of: marker) {
+                        let key = marker.trimmingCharacters(in: CharacterSet(charactersIn: ":"))
+                        
+                        // Get the content after this marker
+                        let afterMarker = currentContent[range.upperBound...]
+                        
+                        // Find the next marker
+                        var endIndex = afterMarker.endIndex
+                        for nextMarker in markers {
+                            if let nextRange = afterMarker.range(of: "\n" + nextMarker) {
+                                endIndex = nextRange.lowerBound
+                                break
+                            }
+                        }
+                        
+                        // Extract the value
+                        let value = String(afterMarker[..<endIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
+                        dict[key] = value
+                        print("Parsed property: [\(key)] = '\(value)'")
+                    }
                 }
+                
+                let dateFormatter = DateFormatter()
+                dateFormatter.locale = Locale(identifier: "en_US")
+                dateFormatter.dateFormat = "EEEE d MMMM yyyy 'at' HH:mm:ss"
+                
+                // Log all properties before creating Item
+                print("\nCreating Item with properties:")
+
+                print("ID: \(dict["ID"] ?? "nil")")
+                print("Title: \(dict["Name"] ?? "nil")")
+                print("Body: \(dict["Body"] ?? "nil")")
+                print("Container: \(dict["Container"] ?? "nil")")
+                print("Account: \(dict["Account"] ?? "nil")")
+                print("Password Protected: \(dict["Password Protected"] ?? "nil")")
+                print("Shared: \(dict["Shared"] ?? "nil")")
+                print("Attachments: \(dict["Attachments"] ?? "nil")")
+                print("Created: \(dict["Created"] ?? "nil")")
+                print("Modified: \(dict["Modified"] ?? "nil")")
+                
+                let item = Item(
+                    title: dict["Name"],
+                    body: dict["Body"],
+                    noteId: dict["ID"],
+                    creationDate: dateFormatter.date(from: dict["Created"] ?? ""),
+                    modificationDate: dateFormatter.date(from: dict["Modified"] ?? ""),
+                    container: dict["Container"],
+                    account: dict["Account"],
+                    isPasswordProtected: (dict["Password Protected"] ?? "").lowercased() == "true",
+                    isShared: (dict["Shared"] ?? "").lowercased() == "true",
+                    attachmentsCount: Int(dict["Attachments"] ?? "0")
+                )
+                
+                // Log created item properties
+                print("\nCreated Item state:")
+                print("Title: \(item.title ?? "nil")")
+                print("Body: \(item.body ?? "nil")")
+                print("Container: \(item.container ?? "nil")")
+                print("Account: \(item.account ?? "nil")")
+                print("Password Protected: \(item.isPasswordProtected)")
+                print("Shared: \(item.isShared)")
+                print("Attachments: \(item.attachmentsCount ?? 0)")
+                print("Creation Date: \(item.creationDate?.description ?? "nil")")
+                print("Modification Date: \(item.modificationDate?.description ?? "nil")")
+                print("----------------------------------------")
+                
+                notes.append(item)
+            }
             
             print("Found \(notes.count) notes, syncing to SwiftData...")
             
@@ -169,15 +284,16 @@ struct ContentView: View {
             
             // Add new items
             for note in notes {
-                let item = Item(title: note.0, body: note.1)
-                modelContext.insert(item)
+                modelContext.insert(note)
             }
             
             // Save changes
             try? modelContext.save()
+            
             print("Sync complete!")
         } else {
             print("Failed to get output from AppleScript")
+            
             isSyncing = false
         }
         
@@ -185,40 +301,18 @@ struct ContentView: View {
     }
     
     var body: some View {
-        NavigationSplitView {
-            List(items) { item in
-                if let title = item.title, let body = item.body {
-                    NavigationLink {
-                        ScrollView(.vertical) {
-                            HStack {
-                                Text(body)
-                                
-                                Spacer()
-                            }
-                            .navigationTitle(title)
-                        }
-                        .padding()
-                    } label: {
-                        Text(title)
+        NotesView()
+            .toolbar {
+                ToolbarItem(placement: .navigation) {
+                    Button { syncNotes() } label: {
+                        Label("Synchronize", systemImage: "arrow.clockwise.icloud")
                     }
+                    .disabled(isSyncing)
                 }
             }
-            .navigationTitle("Notes")
-        } detail: {
-            Text("Select an item")
-        }
-        .toolbar {
-            ToolbarItem(placement: .navigation) {
-                Button { syncNotes() } label: {
-                    Label("Synchronize", systemImage: "arrow.clockwise.icloud")
-                }
-                .disabled(isSyncing)
+            .onAppear {
+                // syncNotes()
             }
-        }
-        .onAppear {
-            syncNotes()
-        }
-
     }
 }
 
