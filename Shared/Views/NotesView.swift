@@ -32,7 +32,7 @@ struct NotesView: View {
                 }
                 .navigationTitle(title)
                 .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
+                    ToolbarItem {
                         Button {
                             isInfoSheetPresented.toggle()
                         } label: {
