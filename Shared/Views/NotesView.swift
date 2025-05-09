@@ -16,7 +16,7 @@ struct NotesView: View {
                 }
             }
             .navigationTitle("Notes")
-            .navigationSplitViewColumnWidth(250)
+            .navigationSplitViewColumnWidth(300)
             .onAppear {
                 selectedItem = items.first
             }
@@ -32,7 +32,7 @@ struct NotesView: View {
                 }
                 .navigationTitle(title)
                 .toolbar {
-                    ToolbarItem {
+                    ToolbarItem(placement: .topBarTrailing) {
                         Button {
                             isInfoSheetPresented.toggle()
                         } label: {
@@ -79,6 +79,12 @@ struct NotesView: View {
                             )
                         }
                     }
+                    
+                    #if os(macOS)
+                    Button("Close") {
+                        isInfoSheetPresented.toggle()
+                    }
+                    #endif
                 }
             } else {
                 Text("Select an item")
