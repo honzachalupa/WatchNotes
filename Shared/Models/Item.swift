@@ -40,10 +40,10 @@ final class Item: Identifiable, Hashable {
     }
     
     static func == (lhs: Item, rhs: Item) -> Bool {
-        lhs.id == rhs.id
+        lhs.noteId == rhs.noteId
     }
     
     func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
+        hasher.combine(noteId)
     }
 }

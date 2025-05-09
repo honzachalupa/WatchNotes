@@ -16,7 +16,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "21CD0E982DCCB8A5009AC1E0"
-               BuildableName = "Watch Notes Server.app"
+               BuildableName = "WristNotes Server.app"
                BlueprintName = "macOS"
                ReferencedContainer = "container:WatchNotes.xcodeproj">
             </BuildableReference>
@@ -45,7 +45,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "21CD0E982DCCB8A5009AC1E0"
-            BuildableName = "Watch Notes Server.app"
+            BuildableName = "WristNotes Server.app"
             BlueprintName = "macOS"
             ReferencedContainer = "container:WatchNotes.xcodeproj">
          </BuildableReference>
@@ -62,7 +62,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "21CD0E982DCCB8A5009AC1E0"
-            BuildableName = "Watch Notes Server.app"
+            BuildableName = "WristNotes Server.app"
             BlueprintName = "macOS"
             ReferencedContainer = "container:WatchNotes.xcodeproj">
          </BuildableReference>

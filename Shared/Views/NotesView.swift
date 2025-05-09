@@ -15,10 +15,12 @@ struct NotesView: View {
                         .tag(item)
                 }
             }
-            .navigationTitle("Notes")
+            .navigationTitle("WristNotes")
             .navigationSplitViewColumnWidth(300)
             .onAppear {
+                #if os(macOS)
                 selectedItem = items.first
+                #endif
             }
         } detail: {
             if let item = selectedItem, let title = item.title, let body = item.body {
@@ -30,8 +32,11 @@ struct NotesView: View {
                         Spacer()
                     }
                 }
+                #if os(macOS)
                 .navigationTitle(title)
+                #endif
                 .toolbar {
+                    #if os(macOS)
                     ToolbarItem {
                         Button {
                             isInfoSheetPresented.toggle()
@@ -39,6 +44,15 @@ struct NotesView: View {
                             Label("Info", systemImage: "info.circle")
                         }
                     }
+                    #else
+                    ToolbarItem(placement: .topBarTrailing) {
+                            Button {
+                                isInfoSheetPresented.toggle()
+                            } label: {
+                                Label("Info", systemImage: "info.circle")
+                            }
+                        }
+                    #endif
                 }
                 .sheet(isPresented: $isInfoSheetPresented) {
                     List {

@@ -6,7 +6,9 @@ actor NotesService {
     
     func sync(modelContext: ModelContext) async throws {
         guard !isRunning else { return }
+        
         isRunning = true
+        
         defer { isRunning = false }
         
         try await launchNotesApp()
@@ -19,8 +21,10 @@ actor NotesService {
         let config = NSWorkspace.OpenConfiguration()
         config.activates = true
         
-        print("Launching Notes app...")
+        print("[NotesService] Launching Notes app...")
+
         _ = try await NSWorkspace.shared.openApplication(at: notesURL, configuration: config)
+
         try await Task.sleep(for: .seconds(2))
     }
     
@@ -29,7 +33,9 @@ actor NotesService {
             if await checkNotesAccess() {
                 return
             }
-            print("Waiting for Notes access (attempt \(attempt))...")
+
+            print("[NotesService] Waiting for Notes access (attempt \(attempt))...")
+
             try await Task.sleep(for: .seconds(1))
         }
         throw SyncError.noNotesAccess
@@ -82,7 +88,7 @@ actor NotesService {
         var error: NSDictionary?
         guard let result = script?.executeAndReturnError(&error),
               let output = result.stringValue else {
-            print("Failed to fetch notes: \(error?.description ?? "unknown error")")
+            print("[NotesService] Failed to fetch notes: \(error?.description ?? "unknown error")")
             throw SyncError.fetchFailed
         }
         
@@ -93,7 +99,7 @@ actor NotesService {
     }
     
     private func parseNotes(_ output: String) async -> [(String, [String: String])] {
-        print("\nRaw AppleScript output:\n\(output)")
+        print("[NotesService] Raw AppleScript output:\n\(output)")
         
         let notes = output.components(separatedBy: "---START---")
             .dropFirst() // First component is empty
@@ -157,42 +163,78 @@ actor NotesService {
         dateFormatter.locale = Locale(identifier: "en_US")
         dateFormatter.dateFormat = "EEEE d MMMM yyyy 'at' HH:mm:ss"
         
-        // First, delete all existing notes
+        // First, delete any items that don't have a noteId (cleanup)
         let descriptor = FetchDescriptor<Item>()
         if let existingItems = try? context.fetch(descriptor) {
             for item in existingItems {
-                context.delete(item)
+                if item.noteId == nil {
+                    context.delete(item)
+                }
             }
         }
         
-        // Then insert the new notes
+        // Now process each note from Apple Notes
         for (id, dict) in notes {
-            let item = Item(
-                title: dict["NAME"],
-                body: dict["BODY"],
-                noteId: id,
-                creationDate: dateFormatter.date(from: dict["CREATED"] ?? ""),
-                modificationDate: dateFormatter.date(from: dict["MODIFIED"] ?? ""),
-                container: dict["CONTAINER"],
-                account: dict["ACCOUNT"],
-                isPasswordProtected: (dict["PASSWORD"] ?? "").lowercased() == "true",
-                isShared: (dict["SHARED"] ?? "").lowercased() == "true",
-                attachmentsCount: Int(dict["ATTACHMENTS"] ?? "0")
-            )
-            context.insert(item)
+            // Try to find existing note by noteId
+            let noteDescriptor = FetchDescriptor<Item>(predicate: #Predicate<Item> { item in
+                item.noteId == id
+            })
+            
+            if let existingItems = try? context.fetch(noteDescriptor),
+               let existingItem = existingItems.first {
+                // Update existing note if it has changed
+                let newModDate = dateFormatter.date(from: dict["MODIFIED"] ?? "")
+                if existingItem.modificationDate != newModDate {
+                    existingItem.title = dict["NAME"]
+                    existingItem.body = dict["BODY"]
+                    existingItem.modificationDate = newModDate
+                    existingItem.container = dict["CONTAINER"]
+                    existingItem.account = dict["ACCOUNT"]
+                    existingItem.isPasswordProtected = (dict["PASSWORD"] ?? "").lowercased() == "true"
+                    existingItem.isShared = (dict["SHARED"] ?? "").lowercased() == "true"
+                    existingItem.attachmentsCount = Int(dict["ATTACHMENTS"] ?? "0")
+                }
+            } else {
+                // Insert new note
+                let item = Item(
+                    title: dict["NAME"],
+                    body: dict["BODY"],
+                    noteId: id,
+                    creationDate: dateFormatter.date(from: dict["CREATED"] ?? ""),
+                    modificationDate: dateFormatter.date(from: dict["MODIFIED"] ?? ""),
+                    container: dict["CONTAINER"],
+                    account: dict["ACCOUNT"],
+                    isPasswordProtected: (dict["PASSWORD"] ?? "").lowercased() == "true",
+                    isShared: (dict["SHARED"] ?? "").lowercased() == "true",
+                    attachmentsCount: Int(dict["ATTACHMENTS"] ?? "0")
+                )
+                context.insert(item)
+            }
+        }
+        
+        // Delete notes that no longer exist in Apple Notes
+        let allNoteIds = Set(notes.map { $0.0 })
+        let cleanupFetchDescriptor = FetchDescriptor<Item>()
+        
+        if let existingItems = try? context.fetch(cleanupFetchDescriptor) {
+            for item in existingItems {
+                if let noteId = item.noteId, !allNoteIds.contains(noteId) {
+                    context.delete(item)
+                }
+            }
         }
         
         do {
             try context.save()
-            print("Synced \(notes.count) notes")
+            print("[NotesService] Synced \(notes.count) notes")
         } catch {
-            print("Failed to save notes: \(error)")
+            print("[NotesService] Failed to save notes: \(error)")
         }
     }
     
     private func checkNotesAccess() async -> Bool {
         guard NSWorkspace.shared.runningApplications.contains(where: { $0.bundleIdentifier == "com.apple.Notes" }) else {
-            print("Notes is not running")
+            print("[NotesService] Notes is not running")
             return false
         }
         
@@ -219,10 +261,10 @@ actor NotesService {
             
             var error: NSDictionary?
             if let result = script?.executeAndReturnError(&error) {
-                print("Notes access check result: \(result.booleanValue)")
+                print("[NotesService] Notes access check result: \(result.booleanValue)")
                 continuation.resume(returning: result.booleanValue)
             } else {
-                print("Notes access error: \(error?.description ?? "unknown")")
+                print("[NotesService] Notes access error: \(error?.description ?? "unknown")")
                 continuation.resume(returning: false)
             }
         }

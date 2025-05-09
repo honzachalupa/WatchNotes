@@ -9,6 +9,14 @@ struct ContentView: View {
     
     private let notesService = NotesService()
     
+    /* func flushNotes() {
+        do {
+            try modelContext.delete(model: Item.self)
+        } catch {
+            print("Failed to delete students.")
+        }
+    } */
+    
     var body: some View {
         NotesView()
             .toolbar {
@@ -23,6 +31,13 @@ struct ContentView: View {
                     }
                     .disabled(isSyncing)
                 }
+                
+                /* ToolbarItem(placement: .navigation) {
+                    Button(action: flushNotes) {
+                        Label("Flush notes", systemImage: "trash")
+                    }
+                    .disabled(isSyncing)
+                } */
             }
             .inspector(isPresented: .constant(true)) {
                 Form {
@@ -39,14 +54,14 @@ struct ContentView: View {
                     } header: {
                         Text("Fetch period")
                     } footer: {
-                        Text("Will be added in future release - for now only manual synchorization is supported.")
+                        Text("Will be added in future release - for now only manual synchronization is supported.")
                     }
                     
                     Section("API limitations") {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("There is no official Notes app API made by Apple - this is a custom \"workaround\" API")
                             Text("Notes app will open during sync")
-                            Text("Password-protected notes are not password-protected in the Watch Notes app")
+                            Text("Password-protected notes are not password-protected in the WristNotes app")
                             Text("Some formatting may be simplified")
                             Text("Attachments are not supported")
                             Text("Performance depends on Notes app response time")
@@ -69,7 +84,7 @@ struct ContentView: View {
             do {
                 try await notesService.sync(modelContext: modelContext)
             } catch {
-                print("Sync failed: \(error.localizedDescription)")
+                print("[ContentView] Sync failed: \(error.localizedDescription)")
             }
         }
     }

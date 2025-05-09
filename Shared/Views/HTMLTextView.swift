@@ -5,7 +5,7 @@ struct HTMLTextView: View {
     @State private var components: [HTMLComponent] = []
     
     init(htmlContent: String?) {
-        print("HTMLTextView init with content: \(String(describing: htmlContent?.prefix(100)))")
+        print("[HTMLTextView] init with content: \(String(describing: htmlContent?.prefix(100)))")
         self.htmlContent = htmlContent
     }
     
@@ -79,7 +79,7 @@ struct HTMLTextView: View {
     }
     
     private func parseHTML(_ html: String) {
-        print("\nParseHTML called with length: \(html.count)")
+        print("[HTMLTextView] ParseHTML called with length: \(html.count)")
         
         // Clean up the content first
         var content = html
@@ -136,10 +136,11 @@ struct HTMLTextView: View {
     }
     
     private func extract(from html: String, tag: String) -> String? {
-        print("Extracting \(tag) from: \(html)")
+        print("[HTMLTextView] Extracting \(tag) from: \(html)")
+
         let pattern = "<\(tag)[^>]*>(.*?)</\(tag)>"
         guard let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators]) else {
-            print("Failed to create regex for tag: \(tag)")
+            print("[HTMLTextView] Failed to create regex for tag: \(tag)")
             return nil
         }
         
@@ -152,7 +153,7 @@ struct HTMLTextView: View {
     }
     
     private func clean(_ text: String) -> String {
-        print("Cleaning text: \(text)")
+        print("[HTMLTextView] Cleaning text: \(text)")
         // Remove HTML tags
         var cleaned = text.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
         
