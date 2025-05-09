@@ -35,6 +35,7 @@ actor NotesService {
         throw SyncError.noNotesAccess
     }
     
+    @MainActor
     private func fetchAndSyncNotes(modelContext: ModelContext) async throws {
         let script = NSAppleScript(source: """
             tell application "Notes"
@@ -85,13 +86,13 @@ actor NotesService {
             throw SyncError.fetchFailed
         }
         
-        let notes = parseNotes(output)
+        let notes = await parseNotes(output)
         await MainActor.run {
             updateNotes(notes, in: modelContext)
         }
     }
     
-    private func parseNotes(_ output: String) -> [(String, [String: String])] {
+    private func parseNotes(_ output: String) async -> [(String, [String: String])] {
         print("\nRaw AppleScript output:\n\(output)")
         
         let notes = output.components(separatedBy: "---START---")

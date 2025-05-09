@@ -19,8 +19,12 @@ struct NotesView: View {
         } detail: {
             if let item = selectedItem, let title = item.title, let body = item.body {
                 ScrollView(.vertical) {
-                    HTMLTextView(htmlContent: body)
-                        .padding()
+                    HStack {
+                        HTMLTextView(htmlContent: body)
+                            .padding(.horizontal)
+                        
+                        Spacer()
+                    }
                 }
                 .navigationTitle(title)
                 .toolbar {

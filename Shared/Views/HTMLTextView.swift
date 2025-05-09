@@ -75,8 +75,6 @@ struct HTMLTextView: View {
             }
         } else {
             Text("No content")
-                .foregroundColor(.gray)
-                .italic()
         }
     }
     
