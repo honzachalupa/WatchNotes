@@ -4,6 +4,7 @@ import SwiftData
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var items: [Item]
+    @State private var fetchIntervalHours: Int = 1
     @State private var isSyncing = false
     
     private let notesService = NotesService()
@@ -21,6 +22,36 @@ struct ContentView: View {
                         }
                     }
                     .disabled(isSyncing)
+                }
+            }
+            .inspector(isPresented: .constant(true)) {
+                Form {
+                    Section("Download Apple Watch app") {
+                        QrCodeView(value: "https://www.apple.com/")
+                    }
+                    
+                    Section {
+                        Picker("", selection: $fetchIntervalHours) {
+                            Text("Every hour")
+                                .tag(1)
+                        }
+                        .disabled(true)
+                    } header: {
+                        Text("Fetch period")
+                    } footer: {
+                        Text("Will be added in future release - for now only manual synchorization is supported.")
+                    }
+                    
+                    Section("API limitations") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("There is no official Notes app API made by Apple - this is a custom \"workaround\" API")
+                            Text("Notes app will open during sync")
+                            Text("Password-protected notes are not password-protected in the Watch Notes app")
+                            Text("Some formatting may be simplified")
+                            Text("Attachments are not supported")
+                            Text("Performance depends on Notes app response time")
+                        }
+                    }
                 }
             }
     }

@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct NotesView: View {
-    @Query private var items: [Item]
+    @Query(sort: \Item.title) private var items: [Item]
     @State private var selectedItem: Item?
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     @State private var isInfoSheetPresented: Bool = false
@@ -16,6 +16,10 @@ struct NotesView: View {
                 }
             }
             .navigationTitle("Notes")
+            .navigationSplitViewColumnWidth(250)
+            .onAppear {
+                selectedItem = items.first
+            }
         } detail: {
             if let item = selectedItem, let title = item.title, let body = item.body {
                 ScrollView(.vertical) {

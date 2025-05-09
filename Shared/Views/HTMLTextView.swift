@@ -118,7 +118,8 @@ struct HTMLTextView: View {
             // Handle list items with proper indentation
             else if trimmed.contains("<li>") {
                 if let text = extract(from: trimmed, tag: "li") {
-                    let indentedText = String(repeating: "    ", count: currentIndentLevel) + "• " + text
+                    let indentedText = String(repeating: "   ", count: currentIndentLevel) + text
+
                     newComponents.append(.init(type: .listItem, text: indentedText))
                 }
             }
