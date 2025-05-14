@@ -26,9 +26,5 @@
 	<array>
 		<string>com.apple.notes.services</string>
 	</array>
-	<key>com.apple.security.temporary-exception.shared-preference.read-only</key>
-	<array>
-		<string>com.apple.Notes</string>
-	</array>
 </dict>
 </plist>
